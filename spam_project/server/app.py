@@ -7,12 +7,23 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
 import joblib
 
 app = Flask(__name__)
 
 BASE_DATA_PATH = os.path.join(os.path.dirname(__file__), "data")
-BASE_DATA_FILES = [os.path.join(BASE_DATA_PATH, "SMSSpamCollection_processed.csv"), os.path.join(BASE_DATA_PATH, "SMSSpamDetection_processed.csv")]
+BASE_DATA_FILES = [
+    os.path.join(BASE_DATA_PATH, "SMSSpamCollection_processed.csv"), 
+    os.path.join(BASE_DATA_PATH, "SMSSpamDetection_processed.csv"), 
+    os.path.join(BASE_DATA_PATH, "SPAM_SMS_processed.csv"),
+    os.path.join(BASE_DATA_PATH, "Dataset_5971_processed.csv"),
+    os.path.join(BASE_DATA_PATH, "retraining_round1.csv"),
+    os.path.join(BASE_DATA_PATH, "retraining_round2.csv"),
+    os.path.join(BASE_DATA_PATH, "retraining_round3.csv"),
+    os.path.join(BASE_DATA_PATH, "retraining_round4.csv"),
+    os.path.join(BASE_DATA_PATH, "retraining_round5.csv")
+]
 FEEDBACK_FILE = os.path.join(BASE_DATA_PATH, "feedback.csv")
 MODEL_FILE = os.path.join(BASE_DATA_PATH, "spam_model.joblib")
 
@@ -26,39 +37,25 @@ def load_base_dataset():
     """
     dfs = []
     
-    if not os.path.exists(BASE_DATA_FILES[0]):
-        raise FileNotFoundError(
-            f"Base dataset not found at {BASE_DATA_FILES[0]}. "
-            f"Make sure you downloaded the datasets there."
+    for file in BASE_DATA_FILES:
+        if not os.path.exists(file):
+            raise FileNotFoundError(
+                f"Base dataset not found at {file}. "
+                f"Make sure you downloaded the datasets there."
+            )
+        df = pd.read_csv(
+            file,
+            sep=",",
+            header=None,
+            names=["label", "text"],
+            encoding="utf-8"
         )
-    df1 = pd.read_csv(
-        BASE_DATA_FILES[0],
-        sep=",",
-        header=None,
-        names=["label", "text"],
-        encoding="utf-8"
-    )
-    df1["label_num"] = df1["label"].map({"ham": 0, "spam": 1})
-    dfs.append(df1)
-    
-    if not os.path.exists(BASE_DATA_FILES[1]):
-        raise FileNotFoundError(
-            f"Base dataset not found at {BASE_DATA_FILES[1]}. "
-            f"Make sure you downloaded the datasets there."
-        )
-    df2 = pd.read_csv(
-        BASE_DATA_FILES[1],
-        sep=",",
-        header=None,
-        names=["label", "text"],
-        encoding="utf-8"
-    )
-    df2["label_num"] = df2["label"].map({"ham": 0, "spam": 1})
-    dfs.append(df2)
+        df["label_num"] = df["label"].map({"ham": 0, "spam": 1})
+        dfs.append(df)
     
     df_all = pd.concat(dfs, ignore_index=True)
+    df_all.to_csv("data/combined_dataset.csv", index=False, encoding="utf-8-sig")
     
-    print(df_all)
     return df_all
 
 
@@ -119,6 +116,10 @@ def train_new_model():
     pipeline.fit(X_train, y_train)
     val_acc = pipeline.score(X_val, y_val)
     print(f"[TRAIN] Validation accuracy: {val_acc:.3f}")
+    
+    y_pred = pipeline.predict(X_val)
+    print(f"[TRAIN] Confusion Matrix: \n{confusion_matrix(y_val, y_pred)}")
+    print(f"[TRAIN] Classification Report: \n{classification_report(y_val, y_pred)}")
 
     # Save to disk so we can reuse later
     joblib.dump(pipeline, MODEL_FILE)
