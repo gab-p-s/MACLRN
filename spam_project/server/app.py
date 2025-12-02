@@ -12,7 +12,7 @@ import joblib
 app = Flask(__name__)
 
 BASE_DATA_PATH = os.path.join(os.path.dirname(__file__), "data")
-BASE_DATA_FILE = os.path.join(BASE_DATA_PATH, "SMSSpamCollection")
+BASE_DATA_FILES = [os.path.join(BASE_DATA_PATH, "SMSSpamCollection_processed.csv"), os.path.join(BASE_DATA_PATH, "SMSSpamDetection_processed.csv")]
 FEEDBACK_FILE = os.path.join(BASE_DATA_PATH, "feedback.csv")
 MODEL_FILE = os.path.join(BASE_DATA_PATH, "spam_model.joblib")
 
@@ -21,23 +21,45 @@ model = None  # will be initialized in load_or_train_model()
 
 def load_base_dataset():
     """
-    Load the original SMS Spam Collection dataset.
+    Load the original SMS datasets.
     File format: tab-separated, columns: label, text
     """
-    if not os.path.exists(BASE_DATA_FILE):
+    dfs = []
+    
+    if not os.path.exists(BASE_DATA_FILES[0]):
         raise FileNotFoundError(
-            f"Base dataset not found at {BASE_DATA_FILE}. "
-            f"Make sure you downloaded 'SMSSpamCollection' there."
+            f"Base dataset not found at {BASE_DATA_FILES[0]}. "
+            f"Make sure you downloaded the datasets there."
         )
-    df = pd.read_csv(
-        BASE_DATA_FILE,
-        sep="\t",
+    df1 = pd.read_csv(
+        BASE_DATA_FILES[0],
+        sep=",",
         header=None,
         names=["label", "text"],
         encoding="utf-8"
     )
-    df["label_num"] = df["label"].map({"ham": 0, "spam": 1})
-    return df
+    df1["label_num"] = df1["label"].map({"ham": 0, "spam": 1})
+    dfs.append(df1)
+    
+    if not os.path.exists(BASE_DATA_FILES[1]):
+        raise FileNotFoundError(
+            f"Base dataset not found at {BASE_DATA_FILES[1]}. "
+            f"Make sure you downloaded the datasets there."
+        )
+    df2 = pd.read_csv(
+        BASE_DATA_FILES[1],
+        sep=",",
+        header=None,
+        names=["label", "text"],
+        encoding="utf-8"
+    )
+    df2["label_num"] = df2["label"].map({"ham": 0, "spam": 1})
+    dfs.append(df2)
+    
+    df_all = pd.concat(dfs, ignore_index=True)
+    
+    print(df_all)
+    return df_all
 
 
 def load_feedback_dataset():
